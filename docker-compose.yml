@@ -1,0 +1,90 @@
+version: '3'
+
+services:
+  ssh-proxy:
+    image: linuxserver/openssh-server:latest
+    container_name: ssh-proxy
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Etc/UTC
+      - PASSWORD_ACCESS=true
+      - USER_NAME=${SSH_USER:-admin}
+      - USER_PASSWORD=${SSH_PASSWORD:-password}
+      - SUDO_ACCESS=false
+      - DOCKER_MODS=linuxserver/mods:openssh-server-ssh-tunnel
+      - GATEWAY_PORTS=true # Allow binding to all interfaces for remote forwarding
+    ports:
+      - "${SSH_PORT:-2222}:2222"
+    restart: unless-stopped
+    volumes:
+      - ssh-data:/config
+    network_mode: "bridge"
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETGID
+      - SETUID
+    security_opt:
+      - no-new-privileges:true
+    read_only: false
+    mem_limit: 256M
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+  
+  wireguard:
+    image: linuxserver/wireguard:latest
+    container_name: wireguard
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Etc/UTC
+      - SERVERPORT=${WG_PORT:-51820}
+      - PEERS=${WG_PEERS:-1}
+      - PEERDNS=auto
+      - INTERNAL_SUBNET=${WG_INTERNAL_SUBNET:-10.13.13.0}
+      - ALLOWEDIPS=0.0.0.0/0
+    ports:
+      - "${WG_PORT:-51820}:51820/udp"
+    sysctls:
+      - net.ipv4.conf.all.src_valid_mark=1
+      - net.ipv4.ip_forward=1
+    restart: unless-stopped
+    volumes:
+      - wireguard-data:/config
+    network_mode: "bridge"
+    command: |
+      if [ "$( iptables -L FORWARD | grep " + REJECT" )" ]; then
+        modprobe ip6_udp_tunnel
+        modprobe udp_tunnel
+        modprobe ip6table_filter
+        modprobe iptable_filter
+      fi
+      /init
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+      
+  watchtower:
+    image: containrrr/watchtower:latest
+    container_name: watchtower
+    environment:
+      - TZ=Etc/UTC
+      - WATCHTOWER_CLEANUP=true
+      - WATCHTOWER_SCHEDULE=${WATCHTOWER_SCHEDULE:-0 0 4 * * *}
+      - WATCHTOWER_INCLUDE_STOPPED=false
+      - WATCHTOWER_NOTIFICATION_REPORT=false
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped
+    network_mode: "bridge"
+    mem_limit: 128M
+
+volumes:
+  ssh-data:
+  wireguard-data: 
