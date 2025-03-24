@@ -18,7 +18,7 @@ services:
       - "${SSH_PORT:-2222}:2222"
     restart: unless-stopped
     volumes:
-      - ssh-data:/config
+      - ./ssh-data:/config
     network_mode: "bridge"
     cap_drop:
       - ALL
@@ -57,7 +57,7 @@ services:
       - net.ipv4.ip_forward=1
     restart: unless-stopped
     volumes:
-      - wireguard-data:/config
+      - ./wireguard-data:/config
     network_mode: "bridge"
     command: |
       if [ "$( iptables -L FORWARD | grep " + REJECT" )" ]; then
@@ -84,7 +84,3 @@ services:
     restart: unless-stopped
     network_mode: "bridge"
     mem_limit: 128M
-
-volumes:
-  ssh-data:
-  wireguard-data: 

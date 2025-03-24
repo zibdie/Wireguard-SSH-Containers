@@ -1,0 +1,4 @@
+ssh-data/*
+!ssh-data/.gitkeep
+wireguard-data/*
+!wireguard-data/.gitkeep
